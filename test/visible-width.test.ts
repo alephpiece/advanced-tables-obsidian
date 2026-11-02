@@ -1,3 +1,4 @@
+import { referenceEnvironment } from '../src/reference-cache';
 import { TableEditorPluginSettings } from '../src/settings';
 import { createVisibleTextProjector } from '../src/visible-text';
 import {
@@ -13,6 +14,7 @@ import {
   SortOrder,
   TableEditor,
 } from '@tgrosinger/md-advanced-tables';
+import MarkdownIt from 'markdown-it';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -112,6 +114,17 @@ test('the document is read only for possible reference links, once per action', 
   fromDocument('[label][ref]');
   fromDocument('**different**');
   assert.equal(reads, 1);
+});
+
+test('long price lists preserve text and still parse a following link', () => {
+  const prices = Array.from({ length: 3000 }, (_, i) => `$${i + 1}`).join(' ');
+  assert.equal(project(`${prices} [label](url)`), `${prices} label`);
+});
+
+test('failed math scans respect link-label bounds, delimiters and escapes', () => {
+  assert.equal(project('[cost $1](url) [cost $2](url)'), 'cost $1 cost $2');
+  assert.equal(project('[a $$x$$](url) and $1'), 'a $$x$$ and $1');
+  assert.equal(project('\\$1 $2 [label](url)'), '$1 $2 label');
 });
 
 const settings = (enabled = true): TableEditorPluginSettings =>
@@ -270,7 +283,41 @@ class MemoryEditor implements ITextEditor {
 }
 
 const editorOptions = (editor: MemoryEditor): Options =>
-  settings().asOptions(() => editor.lines.join('\n'));
+  settings().asOptions(() => editor.lines.join('\n'), editor);
+
+test('typing in a cell and pressing Tab keeps reference definitions reusable', () => {
+  const editor = new MemoryEditor([
+    '| A | B |',
+    '| --- | --- |',
+    '| [one][ref] | 1 |',
+    '',
+    '[ref]: /target',
+  ]);
+  const table = new TableEditor(editor);
+  table.format(editorOptions(editor));
+  const markdown = new MarkdownIt({ html: true });
+  const initial = referenceEnvironment(
+    markdown,
+    editor.lines.join('\n'),
+    editor,
+  );
+  for (const label of ['longer', 'even longer', 'last']) {
+    editor.lines[2] = `| [${label}][ref] | 1 |`;
+    editor.cursor = new Point(2, 3);
+    table.nextCell(editorOptions(editor));
+    assert.equal(
+      referenceEnvironment(markdown, editor.lines.join('\n'), editor),
+      initial,
+    );
+    assert.equal(
+      editor.lines[1],
+      `| ${'-'.repeat(Math.max(3, label.length))} | --- |`,
+    );
+  }
+  editor.lines[4] = 'Reference deleted';
+  table.format(editorOptions(editor));
+  assert.ok(editor.lines[1].includes('-'.repeat('[last][ref]'.length)));
+});
 
 test('Tab selects the same source cell with the feature on or off', () => {
   const source = [

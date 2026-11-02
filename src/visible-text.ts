@@ -1,8 +1,16 @@
+import { referenceEnvironment } from './reference-cache';
 import MarkdownIt from 'markdown-it';
 
 // Parsing never renders HTML or resolves links. Unsupported embeds and math
 // retain their source text because their displayed size is not a text width.
 let parser: MarkdownIt.MarkdownIt | undefined;
+
+// Markdown-it temporarily narrows posMax when parsing link labels. Failed
+// scans can be reused only for the same state, delimiter and upper boundary.
+const failedMathScans = new WeakMap<
+  MarkdownIt.StateInline,
+  Map<string, number>
+>();
 
 const wikiDisplayText = (target: string): string => {
   const separator = target.indexOf('|');
@@ -53,6 +61,11 @@ const math = (state: MarkdownIt.StateInline, silent: boolean): boolean => {
   if (inline && /[ \t]/.test(state.src.charAt(start + 1))) {
     return false;
   }
+  const scanKey = `${marker}:${state.posMax}`;
+  const failedFrom = failedMathScans.get(state)?.get(scanKey);
+  if (failedFrom !== undefined && start >= failedFrom) {
+    return false;
+  }
   let end = start + marker.length;
   while (end < state.posMax) {
     if (state.src[end] === '\\') {
@@ -74,6 +87,12 @@ const math = (state: MarkdownIt.StateInline, silent: boolean): boolean => {
       end++;
     }
   }
+  let failures = failedMathScans.get(state);
+  if (!failures) {
+    failures = new Map();
+    failedMathScans.set(state, failures);
+  }
+  failures.set(scanKey, Math.min(start, failedFrom ?? start));
   return false;
 };
 
@@ -167,10 +186,12 @@ const tokensToText = (tokens: MarkdownIt.Token[]): string =>
 /**
  * Projects Markdown source to estimated display text. Each displayed line is
  * kept separate so the formatter can measure the longest one using its own
- * Unicode width rules. The returned function caches cells during one action.
+ * Unicode width rules. Cells are cached for one action; an optional editor key
+ * also reuses reference definitions across edits confined to a table block.
  */
 export const createVisibleTextProjector = (
   getDocument: () => string = () => '',
+  referenceCacheKey?: object,
 ): ((content: string) => string) => {
   let environment: MarkdownIt.Env | undefined;
   const cache = new Map<string, string>();
@@ -192,14 +213,12 @@ export const createVisibleTextProjector = (
         (token) => token.type === 'text' && token.content.includes('['),
       )
     ) {
-      environment = {};
-      const document = getDocument().replace(/\r\n?/g, '\n');
-      if (document.includes(']:')) {
-        // The block parser collects definitions while respecting code fences;
-        // it does not need to tokenize every other inline in the document.
-        markdown.block.parse(document, markdown, environment, []);
-        tokens = markdown.parseInline(content, environment)[0]?.children ?? [];
-      }
+      environment = referenceEnvironment(
+        markdown,
+        getDocument(),
+        referenceCacheKey,
+      );
+      tokens = markdown.parseInline(content, environment)[0]?.children ?? [];
     }
     // Image dimensions cannot be inferred from their alt text. Fall back for
     // the entire cell instead of pretending that its text is the image width.

@@ -22,7 +22,7 @@ export class TableEditor {
   ) {
     this.app = app;
     this.settings = settings;
-    this.getOptions = () => settings.asOptions(() => editor.getValue());
+    this.getOptions = () => settings.asOptions(() => editor.getValue(), editor);
 
     const ote = new ObsidianTextEditor(app, file, editor);
     this.mte = new MTEEditor(ote);

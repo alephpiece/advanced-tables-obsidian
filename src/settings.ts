@@ -38,12 +38,15 @@ export class TableEditorPluginSettings implements ISettings {
     this.bindTab = allFields.bindTab;
   }
 
-  public asOptions(getDocument: () => string = () => ''): Options {
+  public asOptions(
+    getDocument: () => string = () => '',
+    referenceCacheKey?: object,
+  ): Options {
     return optionsWithDefaults({
       formatType: this.formatType,
       delimiterContent:
         this.useVisibleDelimiterWidth && this.formatType === FormatType.NORMAL
-          ? createVisibleTextProjector(getDocument)
+          ? createVisibleTextProjector(getDocument, referenceCacheKey)
           : undefined,
     });
   }
