@@ -425,6 +425,23 @@ class TableEditorSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName('Estimate delimiter width from visible text')
+      .setDesc(
+        'Use link labels and visible text to size the dashes in the separator row. ' +
+          'This can improve column proportions when exporting with Pandoc. ' +
+          'Requires space padding above. The separator pipes may no longer line up with other rows.',
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useVisibleDelimiterWidth)
+          .setDisabled(this.plugin.settings.formatType !== FormatType.NORMAL)
+          .onChange((value) => {
+            this.plugin.settings.useVisibleDelimiterWidth = value;
+            void this.plugin.saveData(this.plugin.settings);
+          }),
+      );
+
+    new Setting(containerEl)
       .setName('Show icon in sidebar')
       .setDesc(
         'If enabled, a button which opens the table controls toolbar will be added to the Obsidian sidebar. ' +

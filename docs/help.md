@@ -24,6 +24,28 @@ Evaluating formulas is done using the formulas button in the toolbar.
 When using the sort option in the toolbar, the sort will be performed based
 on the column the cursor is currently in.
 
+## Estimate Delimiter Width from Visible Text
+
+Enable **Estimate delimiter width from visible text** in the plugin settings
+to size the separator row's dashes using displayed text instead of link URLs
+and formatting markers. This option is off by default and requires
+**Pad cell width using spaces** to be enabled. It takes effect on the next
+table operation, including Tab/Enter navigation and formatting all tables.
+
+The estimate supports Markdown links, Wiki links and aliases, reference links
+defined in the same note, bold, italics, strikethrough, highlights, inline code,
+escapes and HTML entities. A `<br>` separates displayed lines; the longest line
+determines the width. Unicode text uses the existing formatter's width rules.
+Unaliased Wiki links retain explicit paths and extensions, with heading and
+block subpaths separated by ` > `, as in Obsidian.
+
+Only the separator row's dash counts change. Cell padding still aligns source
+text, so separator pipes may no longer line up with the other rows. This can
+improve exported column proportions in Pandoc workflows that infer widths from
+dash counts; it is an estimate, not a measurement of a particular font or page.
+Images (including the rest of their cell), embeds, math and unsupported HTML
+retain their source text for width estimation.
+
 ## Additional Questions
 
 If you have additional questions which are not covered here, please [create

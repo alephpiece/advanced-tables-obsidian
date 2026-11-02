@@ -2,6 +2,7 @@ import { ObsidianTextEditor } from './obsidian-text-editor';
 import { TableEditorPluginSettings } from './settings';
 import {
   Alignment,
+  Options,
   SortOrder,
   TableEditor as MTEEditor,
 } from '@tgrosinger/md-advanced-tables';
@@ -11,6 +12,7 @@ export class TableEditor {
   private readonly app: App;
   private readonly settings: TableEditorPluginSettings;
   private readonly mte: MTEEditor;
+  private readonly getOptions: () => Options;
 
   constructor(
     app: App,
@@ -20,99 +22,100 @@ export class TableEditor {
   ) {
     this.app = app;
     this.settings = settings;
+    this.getOptions = () => settings.asOptions(() => editor.getValue());
 
     const ote = new ObsidianTextEditor(app, file, editor);
     this.mte = new MTEEditor(ote);
   }
 
   public readonly cursorIsInTableFormula = (): boolean =>
-    this.mte.cursorIsInTableFormula(this.settings.asOptions());
+    this.mte.cursorIsInTableFormula(this.getOptions());
 
   public readonly cursorIsInTable = (): boolean =>
-    this.mte.cursorIsInTable(this.settings.asOptions());
+    this.mte.cursorIsInTable(this.getOptions());
 
   public readonly nextCell = (): void => {
-    this.mte.nextCell(this.settings.asOptions());
+    this.mte.nextCell(this.getOptions());
   };
 
   public readonly previousCell = (): void => {
-    this.mte.previousCell(this.settings.asOptions());
+    this.mte.previousCell(this.getOptions());
   };
 
   public readonly nextRow = (): void => {
-    this.mte.nextRow(this.settings.asOptions());
+    this.mte.nextRow(this.getOptions());
   };
 
   public readonly formatTable = (): void => {
-    this.mte.format(this.settings.asOptions());
+    this.mte.format(this.getOptions());
   };
 
   public readonly formatAllTables = (): void => {
-    this.mte.formatAll(this.settings.asOptions());
+    this.mte.formatAll(this.getOptions());
   };
 
   public readonly insertColumn = (): void => {
-    this.mte.insertColumn(this.settings.asOptions());
+    this.mte.insertColumn(this.getOptions());
   };
 
   public readonly insertRow = (): void => {
-    this.mte.insertRow(this.settings.asOptions());
+    this.mte.insertRow(this.getOptions());
   };
 
   public readonly leftAlignColumn = (): void => {
-    this.mte.alignColumn(Alignment.LEFT, this.settings.asOptions());
+    this.mte.alignColumn(Alignment.LEFT, this.getOptions());
   };
 
   public readonly centerAlignColumn = (): void => {
-    this.mte.alignColumn(Alignment.CENTER, this.settings.asOptions());
+    this.mte.alignColumn(Alignment.CENTER, this.getOptions());
   };
 
   public readonly rightAlignColumn = (): void => {
-    this.mte.alignColumn(Alignment.RIGHT, this.settings.asOptions());
+    this.mte.alignColumn(Alignment.RIGHT, this.getOptions());
   };
 
   public readonly moveColumnLeft = (): void => {
-    this.mte.moveColumn(-1, this.settings.asOptions());
+    this.mte.moveColumn(-1, this.getOptions());
   };
 
   public readonly moveColumnRight = (): void => {
-    this.mte.moveColumn(1, this.settings.asOptions());
+    this.mte.moveColumn(1, this.getOptions());
   };
 
   public readonly moveRowUp = (): void => {
-    this.mte.moveRow(-1, this.settings.asOptions());
+    this.mte.moveRow(-1, this.getOptions());
   };
 
   public readonly moveRowDown = (): void => {
-    this.mte.moveRow(1, this.settings.asOptions());
+    this.mte.moveRow(1, this.getOptions());
   };
 
   public readonly deleteColumn = (): void => {
-    this.mte.deleteColumn(this.settings.asOptions());
+    this.mte.deleteColumn(this.getOptions());
   };
 
   public readonly deleteRow = (): void => {
-    this.mte.deleteRow(this.settings.asOptions());
+    this.mte.deleteRow(this.getOptions());
   };
 
   public readonly sortRowsAsc = (): void => {
-    this.mte.sortRows(SortOrder.Ascending, this.settings.asOptions());
+    this.mte.sortRows(SortOrder.Ascending, this.getOptions());
   };
 
   public readonly sortRowsDesc = (): void => {
-    this.mte.sortRows(SortOrder.Descending, this.settings.asOptions());
+    this.mte.sortRows(SortOrder.Descending, this.getOptions());
   };
 
   public readonly transpose = (): void => {
-    this.mte.transpose(this.settings.asOptions());
+    this.mte.transpose(this.getOptions());
   };
 
   public readonly escape = (): void => {
-    this.mte.escape(this.settings.asOptions());
+    this.mte.escape(this.getOptions());
   };
 
   public readonly evaluateFormulas = (): void => {
-    const err = this.mte.evaluateFormulas(this.settings.asOptions());
+    const err = this.mte.evaluateFormulas(this.getOptions());
     if (err) {
       new Notice(err.message);
     }

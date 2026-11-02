@@ -3,3 +3,5 @@ allowBuilds:
   unrs-resolver: true
 overrides:
   lodash: ^4.18.0
+patchedDependencies:
+  '@tgrosinger/md-advanced-tables@3.11.0': patches/@tgrosinger__md-advanced-tables@3.11.0.patch

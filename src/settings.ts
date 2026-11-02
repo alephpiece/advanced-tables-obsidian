@@ -1,3 +1,4 @@
+import { createVisibleTextProjector } from './visible-text';
 import {
   FormatType,
   Options,
@@ -6,6 +7,7 @@ import {
 
 export const defaultSettings: Partial<ISettings> = {
   formatType: FormatType.NORMAL,
+  useVisibleDelimiterWidth: false,
   showRibbonIcon: true,
   bindEnter: true,
   bindTab: true,
@@ -13,6 +15,7 @@ export const defaultSettings: Partial<ISettings> = {
 
 export interface ISettings {
   formatType: FormatType;
+  useVisibleDelimiterWidth: boolean;
   showRibbonIcon: boolean;
   bindEnter: boolean;
   bindTab: boolean;
@@ -20,6 +23,7 @@ export interface ISettings {
 
 export class TableEditorPluginSettings implements ISettings {
   public formatType: FormatType;
+  public useVisibleDelimiterWidth: boolean;
   public showRibbonIcon: boolean;
 
   public bindEnter: boolean;
@@ -28,12 +32,19 @@ export class TableEditorPluginSettings implements ISettings {
   constructor(loadedData: Partial<ISettings>) {
     const allFields = { ...defaultSettings, ...loadedData };
     this.formatType = allFields.formatType;
+    this.useVisibleDelimiterWidth = allFields.useVisibleDelimiterWidth;
     this.showRibbonIcon = allFields.showRibbonIcon;
     this.bindEnter = allFields.bindEnter;
     this.bindTab = allFields.bindTab;
   }
 
-  public asOptions(): Options {
-    return optionsWithDefaults({ formatType: this.formatType });
+  public asOptions(getDocument: () => string = () => ''): Options {
+    return optionsWithDefaults({
+      formatType: this.formatType,
+      delimiterContent:
+        this.useVisibleDelimiterWidth && this.formatType === FormatType.NORMAL
+          ? createVisibleTextProjector(getDocument)
+          : undefined,
+    });
   }
 }
