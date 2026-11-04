@@ -8,7 +8,7 @@ overrides:
   lodash: ^4.18.0
 
 patchedDependencies:
-  '@tgrosinger/md-advanced-tables@3.11.0': 4e7b52358042aea99169959bf962051d67e54a1c1122cc214a3e03778dad833a
+  '@tgrosinger/md-advanced-tables@3.11.0': 4bd8b92fc76d601cf4536c5177bfce4021cdd934172e0fdb52ae622908ac4108
 
 importers:
 
@@ -16,7 +16,7 @@ importers:
     dependencies:
       '@tgrosinger/md-advanced-tables':
         specifier: 3.11.0
-        version: 3.11.0(patch_hash=4e7b52358042aea99169959bf962051d67e54a1c1122cc214a3e03778dad833a)
+        version: 3.11.0(patch_hash=4bd8b92fc76d601cf4536c5177bfce4021cdd934172e0fdb52ae622908ac4108)
       markdown-it:
         specifier: 15.0.3
         version: 15.0.3
@@ -1189,7 +1189,7 @@ snapshots:
 
   '@package-json/types@0.0.12': {}
 
-  '@tgrosinger/md-advanced-tables@3.11.0(patch_hash=4e7b52358042aea99169959bf962051d67e54a1c1122cc214a3e03778dad833a)':
+  '@tgrosinger/md-advanced-tables@3.11.0(patch_hash=4bd8b92fc76d601cf4536c5177bfce4021cdd934172e0fdb52ae622908ac4108)':
     dependencies:
       decimal.js: 10.4.3
       ebnf: 1.9.1

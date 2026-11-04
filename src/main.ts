@@ -425,11 +425,10 @@ class TableEditorSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Estimate delimiter width from visible text')
+      .setName('Estimate column width from visible text')
       .setDesc(
-        'Use link labels and visible text to size the dashes in the separator row. ' +
-          'This can improve column proportions when exporting with Pandoc. ' +
-          'Requires space padding above. The separator pipes may no longer line up with other rows.',
+        'Use link labels and visible text to size separator dashes and cell padding. ' +
+          'Requires space padding above. Pipes may not line up in source mode.',
       )
       .addToggle((toggle) =>
         toggle

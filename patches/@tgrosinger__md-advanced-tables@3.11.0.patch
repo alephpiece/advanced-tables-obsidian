@@ -1,50 +1,48 @@
+diff --git a/lib/formatter.d.ts b/lib/formatter.d.ts
+index 1fbf54d55c3bd2f5c96f282b1d9609f731e5cd71..b53dba84ec5e10a5dff465881d17edd74cbdd1e8 100644
+--- a/lib/formatter.d.ts
++++ b/lib/formatter.d.ts
+@@ -27,6 +27,12 @@ export interface CompletedTable {
+  * An object containing options for computing text widths.
+  */
+ export interface TextWidthOptions {
++    /**
++     * Optional display text used to measure column widths and cell padding.
++     * Newlines separate displayed lines; the widest line determines the width.
++     * Cell contents and cursor mapping still use the original source text.
++     */
++    displayText?: (content: string) => string;
+     /**
+      * Normalizes text before computing text widths.
+      * @public
 diff --git a/lib/formatter.js b/lib/formatter.js
-index 176581dd988a7f73d526e8a1c52b75fec5e9de83..828fdb39d5cf74e88078d7f4656c4fb482fa2cb9 100644
+index 176581dd988a7f73d526e8a1c52b75fec5e9de83..0ab386dad5525ae7a7ca7ac1d65708c8268823c8 100644
 --- a/lib/formatter.js
 +++ b/lib/formatter.js
-@@ -180,6 +180,7 @@ const _formatTable = (table, options) => {
-     // compute column widths
-     const delimiterRow = table.getDelimiterRow();
-     const columnWidths = new Array(tableWidth).fill(0);
-+    const delimiterWidths = new Array(tableWidth).fill(options.minDelimiterWidth);
-     if (delimiterRow !== undefined) {
-         const delimiterRowWidth = delimiterRow.getWidth();
-         for (let j = 0; j < delimiterRowWidth; j++) {
-@@ -194,6 +195,11 @@ const _formatTable = (table, options) => {
-         const rowWidth = row.getWidth();
-         for (let j = 0; j < rowWidth; j++) {
-             columnWidths[j] = Math.max(columnWidths[j], (0, exports._computeTextWidth)(row.getCellAt(j).content, options.textWidthOptions));
-+            if (options.delimiterContent !== undefined) {
-+                for (const line of options.delimiterContent(row.getCellAt(j).content).split(/\r\n?|\n/)) {
-+                    delimiterWidths[j] = Math.max(delimiterWidths[j], (0, exports._computeTextWidth)(line, options.textWidthOptions));
-+                }
-+            }
+@@ -95,9 +95,16 @@ exports.completeTable = completeTable;
+  * @returns Calculated width of the text.
+  */
+ const _computeTextWidth = (text, options) => {
+-    const normalized = options.normalize ? text.normalize('NFC') : text;
++    const content = options.displayText === undefined ? text : options.displayText(text);
++    const normalized = options.normalize ? content.normalize('NFC') : content;
+     let w = 0;
++    let widestLine = 0;
+     for (const char of normalized) {
++        if ((char === '\r' || char === '\n') && options.displayText !== undefined) {
++            widestLine = Math.max(widestLine, w);
++            w = 0;
++            continue;
++        }
+         if (options.wideChars.has(char)) {
+             w += 2;
+             continue;
+@@ -118,7 +125,7 @@ const _computeTextWidth = (text, options) => {
+                 w += 1;
          }
      }
-     // get column alignments
-@@ -217,7 +223,7 @@ const _formatTable = (table, options) => {
-     if (delimiterRow !== undefined) {
-         rows.push(new table_row_1.TableRow(delimiterRow
-             .getCells()
--            .map((cell, j) => new table_cell_1.TableCell((0, exports._delimiterText)(alignments[j], columnWidths[j]))), marginLeft, ''));
-+            .map((cell, j) => new table_cell_1.TableCell((0, exports._delimiterText)(alignments[j], options.delimiterContent === undefined ? columnWidths[j] : delimiterWidths[j]))), marginLeft, ''));
-     }
-     // body
-     for (let i = delimiterRow !== undefined ? 2 : 1; i < tableHeight; i++) {
-diff --git a/lib/options.d.ts b/lib/options.d.ts
-index 8fa54272a3a577fd4e9bf489fcd0df1a5ef9a683..4f850e063005c3a2e5234b312aaae8dccc844ef3 100644
---- a/lib/options.d.ts
-+++ b/lib/options.d.ts
-@@ -47,6 +47,12 @@ export interface Options {
-      * @public
-      */
-     minDelimiterWidth: number;
-+    /**
-+     * Optional display text used only to size delimiter bars in normal format.
-+     * Newlines separate displayed lines; the widest line determines the width.
-+     * Cell padding and cursor offsets continue to use the original source text.
-+     */
-+    delimiterContent?: (content: string) => string;
-     /**
-      * Default alignment of columns.
-      * @public
+-    return w;
++    return Math.max(widestLine, w);
+ };
+ exports._computeTextWidth = _computeTextWidth;
+ /**

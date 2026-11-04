@@ -142,12 +142,16 @@ const formatted = (
 test('old settings keep the feature off and weak mode ignores it', () => {
   const oldSettings = new TableEditorPluginSettings({});
   assert.equal(oldSettings.useVisibleDelimiterWidth, false);
-  assert.equal(oldSettings.asOptions().delimiterContent, undefined);
+  assert.equal(
+    typeof settings().asOptions().textWidthOptions.displayText,
+    'function',
+  );
+  assert.equal(oldSettings.asOptions().textWidthOptions.displayText, undefined);
   const weak = new TableEditorPluginSettings({
     useVisibleDelimiterWidth: true,
     formatType: FormatType.WEAK,
   });
-  assert.equal(weak.asOptions().delimiterContent, undefined);
+  assert.equal(weak.asOptions().textWidthOptions.displayText, undefined);
   assert.equal(
     formatted(
       ['| A | B |', '| --- | --- |', '| [说明](long-url) | abcdef |'],
@@ -157,17 +161,39 @@ test('old settings keep the feature off and weak mode ignores it', () => {
   );
 });
 
-test('only delimiter bars change; source padding, links and alignment stay intact', () => {
+test('visible widths govern delimiters and padding while preserving link source and alignment', () => {
+  const minimal = ['| abc |', '| --- |', '| [abc](x) |'];
+  assert.deepEqual(formatted(minimal), minimal);
   const source = [
     '| A | B |',
     '| :--- | ---: |',
     '| [说明](https://example.com/long/path) | abcdef |',
   ];
-  const original = formatted(source, settings(false).asOptions());
   const visible = formatted(source);
-  assert.equal(visible[1], '|:---- | ------:|');
-  assert.deepEqual([visible[0], visible[2]], [original[0], original[2]]);
+  assert.deepEqual(visible, [
+    '| A    |      B |',
+    '|:---- | ------:|',
+    '| [说明](https://example.com/long/path) | abcdef |',
+  ]);
   assert.deepEqual(formatted(visible), visible);
+});
+
+test('invisible format characters add no width and remain intact in the source', () => {
+  const invisible = '\u200B\u200C\u200D\u202C\u2060\uFEFF';
+  for (const content of [
+    'a&#x200B;bc',
+    `a${invisible}bc`,
+    `[${invisible}abc](x)`,
+    `[[Note\\|${invisible}abc]]`,
+  ]) {
+    const source = ['| abc |', '| --- |', `| ${content} |`];
+    assert.deepEqual(formatted(source), source);
+  }
+  // Non-breaking spaces still occupy width.
+  assert.equal(
+    formatted(['| abc |', '| --- |', '| a&#xA0;bc |'])[1],
+    '| ---- |',
+  );
 });
 
 test('column widths include headers, Unicode widths and the longest displayed line', () => {
@@ -179,6 +205,12 @@ test('column widths include headers, Unicode widths and the longest displayed li
   assert.equal(formatted(source)[1], '| ------ |:----:| ---- |');
   const combining = ['| A |', '| --- |', '| **e\u0301abc** |'];
   assert.equal(formatted(combining)[1], '| ---- |');
+  assert.deepEqual(formatted(['| H |', '| --- |', '| a<br>bc |', '| xyz |']), [
+    '| H   |',
+    '| --- |',
+    '| a<br>bc  |',
+    '| xyz |',
+  ]);
 });
 
 test('new Wiki aliases stay stable when the kernel escapes their pipes', () => {
@@ -319,20 +351,49 @@ test('typing in a cell and pressing Tab keeps reference definitions reusable', (
   assert.ok(editor.lines[1].includes('-'.repeat('[last][ref]'.length)));
 });
 
-test('Tab selects the same source cell with the feature on or off', () => {
+test('Tab selects the same cell when visible padding moves its source position', () => {
   const source = [
     '| A | B |',
     '| --- | --- |',
-    '| [说明](https://example.com/long/path) | second |',
+    '| x | second |',
+    '| [说明](https://example.com/long/path) | last |',
   ];
   const visible = new MemoryEditor(source);
   const normal = new MemoryEditor(source);
-  visible.cursor = normal.cursor = new Point(2, 4);
+  visible.cursor = normal.cursor = new Point(2, 2);
   new TableEditor(visible).nextCell(editorOptions(visible));
   new TableEditor(normal).nextCell(settings(false).asOptions());
-  assert.deepEqual(visible.selection, normal.selection);
-  assert.deepEqual(visible.cursor, normal.cursor);
+  for (const editor of [visible, normal]) {
+    const selection = editor.selection;
+    assert.ok(selection);
+    assert.equal(selection.start.row, 2);
+    assert.equal(selection.end.row, 2);
+    assert.equal(
+      editor.lines[2].slice(selection.start.column, selection.end.column),
+      'second',
+    );
+  }
+  assert.ok(visible.cursor.column < normal.cursor.column);
   assert.equal(visible.lines[1], '| ---- | ------ |');
+});
+
+test('formatting preserves the source cursor inside links after alignment padding changes', () => {
+  for (const alignment of [':---', '---:', ':---:']) {
+    const editor = new MemoryEditor([
+      '| Header | B |',
+      `| ${alignment} | --- |`,
+      '| [x](url) | second |',
+      '| abcdef | last |',
+    ]);
+    editor.cursor = new Point(2, editor.lines[2].indexOf('url') + 1);
+    new TableEditor(editor).format(editorOptions(editor));
+    assert.equal(editor.cursor.row, 2);
+    assert.equal(editor.cursor.column, editor.lines[2].indexOf('url') + 1);
+    assert.equal(
+      readTable(editor.lines, editorOptions(editor)).getCellAt(2, 0)?.content,
+      '[x](url)',
+    );
+  }
 });
 
 test('formatting keeps a cursor in the same delimiter cell and clamps its offset', () => {

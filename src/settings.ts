@@ -15,6 +15,7 @@ export const defaultSettings: Partial<ISettings> = {
 
 export interface ISettings {
   formatType: FormatType;
+  // Keep the saved key compatible with earlier delimiter-only releases.
   useVisibleDelimiterWidth: boolean;
   showRibbonIcon: boolean;
   bindEnter: boolean;
@@ -42,12 +43,16 @@ export class TableEditorPluginSettings implements ISettings {
     getDocument: () => string = () => '',
     referenceCacheKey?: object,
   ): Options {
-    return optionsWithDefaults({
-      formatType: this.formatType,
-      delimiterContent:
-        this.useVisibleDelimiterWidth && this.formatType === FormatType.NORMAL
-          ? createVisibleTextProjector(getDocument, referenceCacheKey)
-          : undefined,
-    });
+    const options = optionsWithDefaults({ formatType: this.formatType });
+    if (
+      this.useVisibleDelimiterWidth &&
+      this.formatType === FormatType.NORMAL
+    ) {
+      options.textWidthOptions = {
+        ...options.textWidthOptions,
+        displayText: createVisibleTextProjector(getDocument, referenceCacheKey),
+      };
+    }
+    return options;
   }
 }

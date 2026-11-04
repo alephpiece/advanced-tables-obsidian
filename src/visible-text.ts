@@ -222,9 +222,13 @@ export const createVisibleTextProjector = (
     }
     // Image dimensions cannot be inferred from their alt text. Fall back for
     // the entire cell instead of pretending that its text is the image width.
-    const visible = tokens.some((token) => token.type === 'image')
-      ? content
-      : tokensToText(tokens);
+    // These characters may affect shaping or direction, but do not themselves
+    // add width. Remove them from the estimate, never from the source cell.
+    const visible = (
+      tokens.some((token) => token.type === 'image')
+        ? content
+        : tokensToText(tokens)
+    ).replace(/\p{Default_Ignorable_Code_Point}/gu, '');
     cache.set(content, visible);
     return visible;
   };

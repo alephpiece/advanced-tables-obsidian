@@ -1,17 +1,18 @@
 # Formatter extension
 
-The published `@tgrosinger/md-advanced-tables` package does not expose a way to
-size delimiter bars independently of source cell padding. The adjacent pnpm
-patch adds an optional `Options.delimiterContent` projection to its normal
-formatter and TypeScript declaration. The formatter measures the projection's
-longest line with its existing Unicode width rules and minimum delimiter width.
-When the projection is absent, or when weak formatting is selected, the
-original behavior applies.
+The published `@tgrosinger/md-advanced-tables` package measures Markdown source
+when sizing columns and padding cells. The adjacent pnpm patch adds an optional
+`TextWidthOptions.displayText` projection to its shared width calculation and
+TypeScript declaration. Column widths, delimiter bars and alignment padding
+all use the projection's longest line, with the existing Unicode width rules
+and minimum delimiter width. When the projection is absent, the original
+behavior applies. The plugin supplies it only for normal formatting.
 
-This hook runs in the shared formatter so commands, navigation, formulas and
-bulk formatting use the same table model and cursor offsets. Display text
-parsing lives in `src/visible-text.ts`; the dependency patch contains no
-Obsidian-specific parsing.
+This hook measures text without changing cell contents. Commands, navigation,
+formulas and bulk formatting retain the same table model, and cursor tracking
+continues to use source text. Display text parsing and the exclusion of
+default-ignorable Unicode characters live in `src/visible-text.ts`; the
+dependency patch contains no Obsidian-specific parsing.
 
 `pnpm install --frozen-lockfile` applies the patch through
 `pnpm-workspace.yaml` and the lockfile. When upgrading the dependency, port the
