@@ -1,5 +1,17 @@
+import { ensureSyntaxTree } from '@codemirror/language';
+import type { EditorView } from '@codemirror/view';
 import { Point, Range } from '@tgrosinger/md-advanced-tables';
-import { App, Editor, TFile } from 'obsidian';
+import type { Editor, EditorPosition } from 'obsidian';
+
+interface LegacyCodeMirror {
+  getTokenAt(
+    position: EditorPosition,
+    precise: boolean,
+  ): { type: string | null };
+}
+
+const protectedToken =
+  /(?:^|[ _-])(?:math|codeblock|indented-code|frontmatter|inline-code)(?:$|[ _-])/i;
 
 /**
  * ObsidianTextEditor is an implementation of the ITextEditor interface from
@@ -7,14 +19,13 @@ import { App, Editor, TFile } from 'obsidian';
  * with Obsidian.
  */
 export class ObsidianTextEditor {
-  private readonly app: App;
-  private readonly file: TFile;
   private readonly editor: Editor;
+  private readonly hasOptOut: boolean;
 
-  constructor(app: App, file: TFile, editor: Editor) {
-    this.app = app;
-    this.file = file;
+  constructor(editor: Editor) {
     this.editor = editor;
+    // Each adapter serves one command; table edits cannot add marker lines.
+    this.hasOptOut = editor.getValue().includes('-tx-');
   }
 
   public getCursorPosition = (): Point => {
@@ -36,34 +47,53 @@ export class ObsidianTextEditor {
   public getLastRow = (): number => this.editor.lastLine();
 
   public acceptsTableEdit = (row: number): boolean => {
-    const cache = this.app.metadataCache.getFileCache(this.file);
-    if (!cache?.sections) {
-      return true;
-    }
-
-    const table = cache.sections.find(
-      (section): boolean =>
-        section.position.start.line <= row &&
-        section.position.end.line >= row &&
-        section.type !== 'code' &&
-        section.type !== 'math',
-    );
-    if (table === undefined) {
+    // Obsidian documents editor.cm, but does not expose it in Editor's types.
+    // @ts-expect-error, not typed by Obsidian
+    const cm: EditorView | LegacyCodeMirror | undefined = this.editor.cm;
+    if (!cm) {
       return false;
     }
-
-    // Check that the text `-tx-` is not on the line immediately preceeding the
-    // table found in the previous check.
-    // https://github.com/tgrosinger/advanced-tables-obsidian/issues/133
-    const preceedingLineIndex = table.position.start.line;
-    if (preceedingLineIndex >= 0) {
-      const preceedingLine = this.getLine(preceedingLineIndex);
-      if (preceedingLine === '-tx-') {
+    const text = this.getLine(row);
+    const column = Math.max(0, text.search(/\S/));
+    if ('getTokenAt' in cm) {
+      if (
+        protectedToken.test(
+          cm.getTokenAt({ line: row, ch: column + 1 }, true).type ?? '',
+        )
+      ) {
         return false;
+      }
+    } else {
+      const { state } = cm;
+      // Parse through the inspected line, even outside the viewport. A partial
+      // tree must never turn unknown context into permission to rewrite text.
+      const line = state.doc.line(row + 1);
+      const tree = ensureSyntaxTree(state, line.to, Infinity);
+      if (!tree) {
+        return false;
+      }
+      // Inspect the leading pipe's context, not math/code inside a table cell.
+      for (
+        let node = tree.resolveInner(line.from + column, 1);
+        node;
+        node = node.parent
+      ) {
+        if (protectedToken.test(node.name)) {
+          return false;
+        }
       }
     }
 
-    return true;
+    // Preserve the -tx- opt-out using current lines, without cached positions.
+    // https://github.com/tgrosinger/advanced-tables-obsidian/issues/133
+    if (!this.hasOptOut) {
+      return true;
+    }
+    let firstRow = row;
+    while (firstRow > 0 && /^\s*\|/.test(this.getLine(firstRow - 1))) {
+      firstRow--;
+    }
+    return firstRow === 0 || this.getLine(firstRow - 1) !== '-tx-';
   };
 
   public getLine = (row: number): string => this.editor.getLine(row);

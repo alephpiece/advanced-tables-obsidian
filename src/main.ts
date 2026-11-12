@@ -100,8 +100,8 @@ export default class TableEditorPlugin extends Plugin {
     this.addCommand({
       id: 'format-all-tables',
       name: 'Format all tables in this file',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        const te = new TableEditor(this.app, view.file, editor, this.settings);
+      editorCallback: (editor: Editor) => {
+        const te = new TableEditor(this.app, editor, this.settings);
         te.formatAllTables();
       },
     });
@@ -244,12 +244,8 @@ export default class TableEditorPlugin extends Plugin {
       id: 'evaluate-formulas',
       name: 'Evaluate table formulas',
       icon: 'formula',
-      editorCheckCallback: (
-        checking: boolean,
-        editor: Editor,
-        view: MarkdownView,
-      ): boolean | void => {
-        const te = new TableEditor(this.app, view.file, editor, this.settings);
+      editorCheckCallback: (checking: boolean, editor: Editor): boolean | void => {
+        const te = new TableEditor(this.app, editor, this.settings);
         if (checking) {
           return te.cursorIsInTable() || te.cursorIsInTableFormula();
         }
@@ -308,12 +304,7 @@ export default class TableEditorPlugin extends Plugin {
             return false;
           }
 
-          const te = new TableEditor(
-            this.app,
-            view.file,
-            view.editor,
-            this.settings,
-          );
+          const te = new TableEditor(this.app, view.editor, this.settings);
 
           if (te.cursorIsInTable()) {
             fn(te);
@@ -325,8 +316,8 @@ export default class TableEditorPlugin extends Plugin {
 
   private readonly newPerformTableAction =
     (fn: (te: TableEditor) => void) =>
-      (checking: boolean, editor: Editor, view: MarkdownView): boolean | void => {
-        const te = new TableEditor(this.app, view.file, editor, this.settings);
+      (checking: boolean, editor: Editor): boolean | void => {
+        const te = new TableEditor(this.app, editor, this.settings);
 
         if (checking) {
           return te.cursorIsInTable();
